@@ -2,6 +2,7 @@
   "expo": {
     "name": "andyoudhstore",
     "slug": "andyoudhstore",
+    "scheme": "andyoudhstore",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -12,7 +13,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.andyoudh.mobilestore",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +28,18 @@
       }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "extra": {
+      "BASE_URL": "https://www.andyoudh.com/api/v1",
+      "router": {},
+      "eas": {
+        "projectId": "9df3eb17-8c29-49b1-8954-db9c566bbf79"
+      }
     }
   }
 }
