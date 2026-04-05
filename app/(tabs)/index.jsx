@@ -2,7 +2,9 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import {
   FlatList,
+  Pressable,
   RefreshControl,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -13,6 +15,7 @@ import { FontAwesome } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import ProductCard from "../../components/ProductCard";
 import FilterModal from "../../components/FilterModal";
+import SkeletonLoader from "../../components/SkeletonLoader";
 
 const BASE_URL = Constants.expoConfig.extra.BASE_URL;
 
@@ -139,6 +142,26 @@ export default function App() {
     await fetchProductData();
   };
 
+  // Count active filters
+  const getActiveFilterCount = () => {
+    let count = 0;
+    if (filters.categoryID !== "all") count++;
+    if (filters.sortBy !== "all") count++;
+    if (filters.rating !== "all") count++;
+    return count;
+  };
+
+  // Remove individual filter
+  const removeFilter = (filterKey) => {
+    setFilters((prev) => ({ ...prev, [filterKey]: "all" }));
+  };
+
+  // Handle product press
+  const handleProductPress = (product) => {
+    // Navigate to product detail page (to be implemented)
+    console.log("Product pressed:", product.name);
+  };
+
   return (
     <SafeAreaView className="min-h-screen">
       <View className="flex-1 pb-11">
@@ -159,19 +182,85 @@ export default function App() {
             />
           </View>
           <TouchableOpacity
-            className="border border-[#be7b34] rounded-md py-1 px-3"
+            className="border border-[#be7b34] rounded-md py-1 px-3 relative"
             onPress={toggleFilterModal}
           >
             <Text className="text-center text-lg font-semibold text-[#be7b34]">
               Filter
             </Text>
+            {getActiveFilterCount() > 0 && (
+              <View className="absolute -top-2 -right-2 bg-red-500 rounded-full w-5 h-5 items-center justify-center">
+                <Text className="text-white text-xs font-bold">
+                  {getActiveFilterCount()}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
+
+        {/* Active Filter Chips */}
+        {getActiveFilterCount() > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            className="px-4 py-2"
+          >
+            <View className="flex-row gap-2">
+              {filters.categoryID !== "all" && (
+                <View className="flex-row items-center bg-[#be7b34] rounded-full px-3 py-1">
+                  <Text className="text-white text-sm mr-1">
+                    {filters.categoryID}
+                  </Text>
+                  <Pressable
+                    onPress={() => removeFilter("categoryID")}
+                    hitSlop={8}
+                  >
+                    <FontAwesome name="times" size={12} color="white" />
+                  </Pressable>
+                </View>
+              )}
+              {filters.sortBy !== "all" && (
+                <View className="flex-row items-center bg-[#be7b34] rounded-full px-3 py-1">
+                  <Text className="text-white text-sm mr-1">
+                    {filters.sortBy === "sellPrice"
+                      ? "Price: Low to High"
+                      : "Price: High to Low"}
+                  </Text>
+                  <Pressable onPress={() => removeFilter("sortBy")} hitSlop={8}>
+                    <FontAwesome name="times" size={12} color="white" />
+                  </Pressable>
+                </View>
+              )}
+              {filters.rating !== "all" && (
+                <View className="flex-row items-center bg-[#be7b34] rounded-full px-3 py-1">
+                  <Text className="text-white text-sm mr-1">
+                    {filters.rating}+ Reviews
+                  </Text>
+                  <Pressable onPress={() => removeFilter("rating")} hitSlop={8}>
+                    <FontAwesome name="times" size={12} color="white" />
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          </ScrollView>
+        )}
+
         <FlatList
-          data={filteredProducts}
+          data={isLoading ? Array(6).fill({}) : filteredProducts}
           numColumns={2}
-          renderItem={({ item }) => <ProductCard product={item} />}
-          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item, index }) =>
+            isLoading ? (
+              <SkeletonLoader key={`skeleton-${index}`} />
+            ) : (
+              <ProductCard
+                product={item}
+                onPress={() => handleProductPress(item)}
+              />
+            )
+          }
+          keyExtractor={(item, index) =>
+            isLoading ? `skeleton-${index}` : item.id.toString()
+          }
           contentContainerStyle={shouldShowEmptyState ? { flexGrow: 1 } : null}
           columnWrapperStyle={{ justifyContent: "flex-start" }}
           style={{ width: "100%" }}
