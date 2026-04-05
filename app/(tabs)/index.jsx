@@ -2,6 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import {
   FlatList,
+  RefreshControl,
   Text,
   TextInput,
   TouchableOpacity,
@@ -15,32 +16,98 @@ import FilterModal from "../../components/FilterModal";
 
 const BASE_URL = Constants.expoConfig.extra.BASE_URL;
 
+// Cache configuration
+let productCache = {
+  data: null,
+  timestamp: null,
+  expiryTime: 5 * 60 * 1000, // 5 minutes in milliseconds
+};
+
 export default function App() {
   const [productData, setProductData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filters, setFilters] = useState({ search: "" });
-  const searchTerm = filters.search.trim().toLowerCase();
-  const filteredProducts = productData.filter((product) => {
-    if (!searchTerm) {
-      return true;
-    }
-
-    return [product.name, product.category, product.brand]
-      .filter(Boolean)
-      .some((value) => value.toLowerCase().includes(searchTerm));
+  const [filters, setFilters] = useState({
+    search: "",
+    categoryID: "all",
+    sortBy: "all",
+    rating: "all",
   });
+  const searchTerm = filters.search.trim().toLowerCase();
+  const filteredProducts = productData
+    .filter((product) => {
+      // Search filter
+      if (searchTerm) {
+        const matchesSearch = [product.name, product.category, product.brand]
+          .filter(Boolean)
+          .some((value) => value.toLowerCase().includes(searchTerm));
+        if (!matchesSearch) return false;
+      }
+
+      // Category filter
+      if (
+        filters.categoryID !== "all" &&
+        product.category !== filters.categoryID
+      ) {
+        return false;
+      }
+
+      // Rating filter
+      if (
+        filters.rating !== "all" &&
+        product.numReviews < parseInt(filters.rating)
+      ) {
+        return false;
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      // Sorting
+      if (filters.sortBy === "sellPrice") {
+        return a.price - b.price; // Low to high
+      } else if (filters.sortBy === "-sellPrice") {
+        return b.price - a.price; // High to low
+      }
+      return 0; // No sorting
+    });
   const shouldShowEmptyState = !isLoading && filteredProducts.length === 0;
 
   const fetchProductData = async () => {
     setIsLoading(true);
 
     try {
+      // Check if cache is valid
+      const now = Date.now();
+      if (
+        productCache.data &&
+        productCache.timestamp &&
+        now - productCache.timestamp < productCache.expiryTime
+      ) {
+        console.log("Using cached data");
+        setProductData(productCache.data);
+        setIsLoading(false);
+        return;
+      }
+
+      // Cache is stale or empty, fetch from server
+      console.log("Fetching from server");
       const response = await fetch(`${BASE_URL}/products?limit=100`);
       const data = await response.json();
+
+      // Update cache
+      productCache.data = data.data;
+      productCache.timestamp = Date.now();
+
       setProductData(data.data);
     } catch (error) {
       console.log("Error fetching product data:", error);
-      setProductData([]);
+      // Use cached data if available, even if stale
+      if (productCache.data) {
+        console.log("Using stale cache due to error");
+        setProductData(productCache.data);
+      } else {
+        setProductData([]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -57,9 +124,24 @@ export default function App() {
     fetchProductData();
   }, []);
 
+  //handle filter changes
+  const filterHandler = (filterData) => {
+    setFilters((prevFilters) => ({
+      ...prevFilters,
+      ...filterData,
+    }));
+  };
+
+  // Force refresh - clears cache
+  const handleRefresh = async () => {
+    productCache.data = null;
+    productCache.timestamp = null;
+    await fetchProductData();
+  };
+
   return (
     <SafeAreaView className="min-h-screen">
-      <View className="flex-1 items-center justify-center pb-11">
+      <View className="flex-1 pb-11">
         <View className="flex-row items-center justify-between w-full px-4 py-2">
           <StatusBar style="auto" />
           <View className="p-2 relative w-10/12">
@@ -91,6 +173,11 @@ export default function App() {
           renderItem={({ item }) => <ProductCard product={item} />}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={shouldShowEmptyState ? { flexGrow: 1 } : null}
+          columnWrapperStyle={{ justifyContent: "flex-start" }}
+          style={{ width: "100%" }}
+          refreshControl={
+            <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />
+          }
           ListEmptyComponent={
             shouldShowEmptyState ? (
               <View className="flex-1 items-center justify-center px-6">
@@ -106,6 +193,7 @@ export default function App() {
         openFilterModal={openFilterModal}
         toggleFilterModal={toggleFilterModal}
         productTypes={productData.map((product) => product.category)}
+        filterHandler={filterHandler}
       />
     </SafeAreaView>
   );

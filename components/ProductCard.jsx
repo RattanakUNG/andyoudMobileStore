@@ -1,14 +1,16 @@
+import { memo } from "react";
 import { Image, Text, View } from "react-native";
 import { CURRENCY } from "../constants/config";
 
 const ProductCard = ({ product }) => {
   // console.log("Product in ProductCard:", product);
   return (
-    <View className="w-1/2 p-2">
+    <View style={{ width: "50%", padding: 8 }}>
       <Image
         source={{ uri: product?.images?.[0] }}
-        className="w-full h-64 rounded-lg p-4"
+        className="w-full rounded-lg"
         resizeMode="cover"
+        style={{ height: 200, backgroundColor: "#f0f0f0" }}
       />
       <View className="pl-6">
         <Text className="text-lg font-bold">{product?.name}</Text>
@@ -23,4 +25,4 @@ const ProductCard = ({ product }) => {
   );
 };
 
-export default ProductCard;
+export default memo(ProductCard);
